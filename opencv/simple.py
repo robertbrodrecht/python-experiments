@@ -2,6 +2,7 @@ import cv2
 import math
 import numpy
 import os
+import PIL
 from PIL import Image, ImageDraw
 import time
 
@@ -79,7 +80,7 @@ class CvFace:
 		
 		return (image, image_np, image_cv)
 	
-	# This probably needs to be the basis of loadImageFrom* conversions
+	# @todo This probably needs to be the basis of loadImageFrom* conversions
 	def imagePilToCv(self, pil):
 		"""Convert PIL to OpenCV."""
 		image_np = numpy.asarray(pil)
@@ -169,7 +170,7 @@ class CvFace:
 		return tmp_img
 		
 	
-	def getFaces(self):
+	def getFaces(self, requireEyes = False):
 		"""Get details about faces in the image."""
 		
 		classifier_face = self.classifiers['face']
@@ -178,7 +179,7 @@ class CvFace:
 		faces = []
 		
 		for rotation in [0, 30, -30]:
-			rot_image = self.image.rotate(rotation)
+			rot_image = self.image.rotate(rotation, resample=PIL.Image.BILINEAR)
 			rot_image_cv = self.imagePilToCv(rot_image)
 			
 			found_faces = classifier_face['classifier'].detectMultiScale(
@@ -208,9 +209,10 @@ class CvFace:
 				if rotation != 0:
 					
 					for face in faces:
-						# Seems around 1.1% of the max dimension works to
+						# Seems around 1.5% of the max dimension works to
 						# find faces detected sideways that were also detected
-						# in normal mode. 
+						# in normal mode. It doesn't work every single time
+						# but it's pretty close.
 						if self.image.size[0] > self.image.size[1]:
 							range_check = int(self.image.size[0]*.015)
 						else:
@@ -227,6 +229,8 @@ class CvFace:
 				if use_rotated_face:
 					face = {
 						'rotation': rotation,
+						'eyes': False,
+						'eyerotation': False,
 						'crop': (top, left, bottom, right),
 						'box': (top, left, width, height),
 						'viewcenter': center,
@@ -237,6 +241,17 @@ class CvFace:
 						face['viewpoly'].append(
 							self.rotatePoints(self.center, point, rotation)
 						)
+					
+					if requireEyes:
+						rot_image_crop = rot_image.copy()
+						rot_image_crop = rot_image_crop.crop(face['crop'])
+						
+						found_eyes = classifier_eyes['classifier'].detectMultiScale(
+							self.imagePilToCv(rot_image_crop), 
+							**classifier_eyes['settings']
+						);
+						
+						self.showRegions(found_eyes, rot_image_crop, 'square', True)
 					
 					faces.append(face)
 			
@@ -253,6 +268,7 @@ if __name__ == "__main__":
 	
 	for file in files:
 		face = CvFace(file)
-		face.getFaces()
-		tmp_img = face.showFaces()
-		tmp_img.save(file.replace('samples/', 'output/'))
+		face.getFaces(True)
+# 		face.cropFaces('output/')
+# 		tmp_img = face.showFaces()
+# 		tmp_img.save(file.replace('samples/', 'output/'))
