@@ -63,6 +63,7 @@ class CvFace:
 	
 	
 	def loadImageFromPath(self, path):
+		"""Load an image from a path."""
 		image = Image.open(path)
 		image_np = numpy.asarray(image)
 		image_cv = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
@@ -71,14 +72,16 @@ class CvFace:
 	
 	
 	def loadImageFromPil(self, pil):
+		"""Load the from a PIL object."""
 		image = pil.copy()
 		image_np = numpy.asarray(pil)
 		image_cv = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
 		
 		return (image, image_np, image_cv)
 	
-	
+	# This probably needs to be the basis of loadImageFrom* conversions
 	def imagePilToCv(self, pil):
+		"""Convert PIL to OpenCV."""
 		image_np = numpy.asarray(pil)
 		image_cv = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
 		return image_cv
