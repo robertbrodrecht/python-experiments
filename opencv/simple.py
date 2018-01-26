@@ -145,10 +145,20 @@ class CvFace:
 		return image
 	
 	def showFaces(self, show = False):
+		colors = ['Yellow', 'Magenta', 'Teal', 'DeepPink', 'Gold', 
+			'MediumSlateBlue', 'Blue', 'Red', 'MediumSpringGreen', 'Green', 
+			'Cyan', 'Brown', 'Orange']
+		
+		color_count = 0
+		
 		tmp_img = self.image.copy()
 		draw = ImageDraw.Draw(tmp_img)
 		for face in self.faces:
-			draw.polygon(face['viewpoly'], outline='blue')
+			draw.polygon(face['viewpoly'], outline=colors[color_count])
+			draw.ellipse(((face['viewcenter'][0]-3, face['viewcenter'][1]-3), (face['viewcenter'][0]+6, face['viewcenter'][1]+6)), fill=colors[color_count])
+			color_count = color_count+1
+			if color_count >= len(colors):
+				color_count = 0
 		
 		if show:
 			tmp_img.show()
@@ -195,11 +205,18 @@ class CvFace:
 				if rotation != 0:
 					
 					for face in faces:
-						range_check = 10
+						# Seems around 1.1% of the max dimension works to
+						# find faces detected sideways that were also detected
+						# in normal mode. 
+						if self.image.size[0] > self.image.size[1]:
+							range_check = int(self.image.size[0]*.015)
+						else:
+							range_check = int(self.image.size[1]*.015)
+						
 						test_cent_x = face['viewcenter'][0]
 						test_cent_y = face['viewcenter'][1]
-						near_x = (test_cent_x-10 < nat_cent_x < test_cent_x+10)
-						near_y = (test_cent_y-10 < nat_cent_y < test_cent_y+10)
+						near_x = (test_cent_x-range_check < nat_cent_x < test_cent_x+range_check)
+						near_y = (test_cent_y-range_check < nat_cent_y < test_cent_y+range_check)
 						
 						if near_x and near_y:
 							use_rotated_face = False
