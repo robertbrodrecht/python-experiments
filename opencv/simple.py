@@ -103,6 +103,7 @@ class CvFace:
 		
 		# Taken from https://stackoverflow.com/questions/34372480/rotate-point-about-another-point-in-degrees-python
 		
+		angle_orig = angle
 		angle = math.radians(angle)
 		
 		ox, oy = origin
@@ -111,7 +112,7 @@ class CvFace:
 		qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
 		qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
 		
-		return (qx, qy)
+		return (int(qx), int(qy))
 	
 	
 	def showRegions(self, regions, image = None, shape = 'square', show = False):
@@ -153,13 +154,25 @@ class CvFace:
 			'MediumSlateBlue', 'Blue', 'Red', 'MediumSpringGreen', 'Green', 
 			'Cyan', 'Brown', 'Orange']
 		
+		colors = ['Red']
+		
 		color_count = 0
 		
 		tmp_img = self.image.copy()
 		draw = ImageDraw.Draw(tmp_img)
+		
 		for face in self.faces:
+			#box
 			draw.polygon(face['viewpoly'], outline=colors[color_count])
-			draw.ellipse(((face['viewcenter'][0]-3, face['viewcenter'][1]-3), (face['viewcenter'][0]+6, face['viewcenter'][1]+6)), fill=colors[color_count])
+			
+			#center
+			draw.ellipse(
+				(
+					(face['viewcenter'][0]-3, face['viewcenter'][1]-3), 
+					(face['viewcenter'][0]+6, face['viewcenter'][1]+6)
+				), 
+				fill=colors[color_count]
+			)
 			color_count = color_count+1
 			if color_count >= len(colors):
 				color_count = 0
@@ -182,9 +195,24 @@ class CvFace:
 			rot_image = self.image.rotate(rotation, resample=PIL.Image.BILINEAR)
 			rot_image_cv = self.imagePilToCv(rot_image)
 			
+			classifier_settings = classifier_face['settings']
+			
+			# This prevents stupid things for the most part
+			# like snow appearing as a face.
+			if self.image.size[0] > self.image.size[1]:
+				classifier_settings['minSize'] = (
+					int(self.image.size[0]*.05),
+					int(self.image.size[0]*.05)
+				)
+			else:
+				classifier_settings['minSize'] = (
+					int(self.image.size[1]*.05),
+					int(self.image.size[1]*.05)
+				)
+			
 			found_faces = classifier_face['classifier'].detectMultiScale(
 				rot_image_cv, 
-				**classifier_face['settings']
+				**classifier_settings
 			);
 			
 			for (top, left, width, height) in found_faces:
@@ -264,11 +292,17 @@ if __name__ == "__main__":
 	import glob
 	import os
 	
+	print(CvFace.rotatePoints(CvFace, (500, 500), (500, 400), 43))
+	exit()
+	
 	files = glob.glob('samples/*.jpg')
+# 	files = glob.glob('../../ORIG_ERIN_HDD/*.jpg')
 	
 	for file in files:
 		face = CvFace(file)
-		face.getFaces(True)
+		faces = face.getFaces(requireEyes = False)
+		if len(faces):
+			face.showFaces(show = True)
 # 		face.cropFaces('output/')
 # 		tmp_img = face.showFaces()
 # 		tmp_img.save(file.replace('samples/', 'output/'))
