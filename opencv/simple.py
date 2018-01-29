@@ -12,7 +12,7 @@ class CvFace:
 		
 		self.classifiers = {
 			'eyes': {
-				'file': 'haarcascade_eye.xml',
+				'file': 'shameem_haarcascade_eye.xml',
 				'settings': {
 					'scaleFactor': 1.05,
 					'minNeighbors': 6
