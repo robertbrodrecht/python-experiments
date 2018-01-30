@@ -11,6 +11,7 @@ import pprint
 
 
 class Object2D:
+	"""Do some basic 2D math stuff."""
 	
 	def rotate(point = (0, 0), degrees = 0, origin = (0, 0)):
 		"""
@@ -22,26 +23,20 @@ class Object2D:
 		if degrees == 0:
 			return point
 		
-		print('POINT BEFORE', point, isinstance(point[0], int), degrees, origin)
-		
 		output = []
 		
 		rads = math.radians(degrees)
 		
 		ox, oy = origin
 		
-		if isinstance(point[0], int):
-			single = True
-			points = (point,)
-			
-		else:
+		if isinstance(point[0], (list, tuple)):
 			single = False
 			points = point
+			
+		else:
+			single = True
+			points = (point,)
 		
-		print('POINT AFTER',points, type(points))
-		
-		
-		# TypeError: 'numpy.int64' object is not iterable
 		for px, py in points:
 			qx = ox + math.cos(rads) * (px - ox) - math.sin(rads) * (py - oy)
 			qy = oy + math.sin(rads) * (px - ox) + math.cos(rads) * (py - oy)
@@ -108,6 +103,7 @@ class Object2D:
 
 
 class CVFace:
+	"""Do some basic CV stuff."""
 	# colors
 	
 	# /usr/local/Cellar/opencv/3.4.0_1/share/OpenCV/haarcascades/
@@ -117,6 +113,22 @@ class CVFace:
 	classifiers = {
 		'eyes': {
 			'file': 'haarcascade_eye.xml',
+			'settings': {
+				'scaleFactor': 1.05,
+				'minNeighbors': 6
+			},
+			'classifier': False,
+		},
+		'eyes_left': {
+			'file': 'haarcascade_lefteye_2splits.xml',
+			'settings': {
+				'scaleFactor': 1.05,
+				'minNeighbors': 6
+			},
+			'classifier': False,
+		},
+		'eyes_right': {
+			'file': 'haarcascade_righteye_2splits.xml',
 			'settings': {
 				'scaleFactor': 1.05,
 				'minNeighbors': 6
@@ -133,17 +145,34 @@ class CVFace:
 		}
 	}
 	
+	normalized_size = (200, 200)
+	resample = PIL.Image.BILINEAR
+	
 	@property
 	def image_cv(self):
+		"""Property-level access to the current image as a CV."""
 		return 	self.imageToCV()
 	
+	
 	def __init__(self, image = None):
+		"""Loads image and classifiers, then kicks off face detection."""
 		self.classifierLoad()
 		if self.imageLoad(image):
 			self.facesDetect()
 	
 	
+	def classifierLoad(self):
+		"""Load the classifiers."""
+		
+		for class_type, class_data in self.classifiers.items():
+			if os.path.isfile(class_data['file']):
+				classifier = cv2.CascadeClassifier(class_data['file'])
+				if not classifier.empty():
+					self.classifiers[class_type]['classifier'] = classifier
+	
+	
 	def imageLoad(self, image = None):
+		"""Load an image from a path or PIL object."""
 		self.path = False
 		self.image = False
 		
@@ -167,43 +196,158 @@ class CVFace:
 	
 		
 	def imageToCV(self, image = None):
+		"""Convert a PIL image to a CV image."""
 		if not image:
 			image = self.image
 		
 		image_np = self.imageToNumpy(image)
-		image_cv = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
+		# Old: cv2.COLOR_BGR2RGB
+		image_cv = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
 		
 		return image_cv
 	
 	
 	def imageToNumpy(self, image = None):
+		"""Convert a PIL image to a numpy array."""
 		if not image:
 			image = self.image
 		
 		return numpy.asarray(image)
 	
 	
-	def imageDrawPolygon(self):
-		return img
-	
-	
-	def classifierLoad(self):
-		"""Load the classifiers."""
 		
-		for class_type, class_data in self.classifiers.items():
-			if os.path.isfile(class_data['file']):
-				classifier = cv2.CascadeClassifier(class_data['file'])
-				if not classifier.empty():
-					self.classifiers[class_type]['classifier'] = classifier
+	def imageDrawSquare(self, square = (0, 0, 1, 1), image=None):
+		"""Draw one or more square on an image."""
+		if not image:
+			image = self.image
+		
+		if len(square) < 1: # or not any(square):
+			return image
+		
+		if isinstance(square[0], (list, tuple, numpy.ndarray)):
+			single = False
+			squares = square
+			
+		else:
+			single = True
+			squares = (square,)
+		
+		draw = ImageDraw.Draw(image)
+		
+		for square in squares:
+			draw.rectangle(square, outline='blue')
+			
+		return image
+	
+	
+	def imageDrawPolygon(self, poly = ((0,0), (0,1), (1,1), (1, 0)), image=None):
+		"""Draw one or more polygon on an image."""
+		if not image:
+			image = self.image
+		
+		if len(poly) < 1 or not any(poly):
+			return image
+			
+		if isinstance(poly[0][0], (list, tuple, numpy.ndarray)):
+			single = False
+			polys = poly
+			
+		else:
+			single = True
+			polys = (poly,)
+		
+		draw = ImageDraw.Draw(image)
+		
+		for poly in polys:			
+			draw.polygon(poly, outline='blue')
+			
+		return image
+	
+	
+	def imageDrawPoint(self, point = (0, 0), image = None):
+		"""Draw one or more points on an image."""
+		if not image:
+			image = self.image
+		
+		if len(point) < 1 or not any(point):
+			return image
+		
+		if isinstance(point[0], (list, tuple, numpy.ndarray)):
+			single = False
+			points = point
+			
+		else:
+			single = True
+			points = (point,)
+		
+		draw = ImageDraw.Draw(image)
+		
+		for point in points:
+			x, y = point
+			
+			draw.ellipse(
+				(
+					(x-2, y-2), 
+					(x+4, y+4)
+				), 
+				fill='blue'
+			)
+			
+		return image
+	
+	
+	def imageDrawFaces(self, faces = None, image = None):
+		"""Draw all faces and centers from a face dictionary."""
+		if not image:
+			image = self.image
+		
+		if not faces:
+			faces = self.faces
+		
+		for face in faces:
+			self.imageDrawPolygon(face['draw']['polygon'], image)
+			self.imageDrawPoint(face['draw']['center'], image)
+		
+		return image
+	
+	
+	def hasNearbyFaceCenters(self, center = (0, 0)):
+		"""Check to see if a face's center is near a point."""
+		
+		if self.image.width > self.image.height:
+			range_check = int(self.image.width*.015)
+		else:
+			range_check = int(self.image.height*.015)
+			
+		center_x, center_y = center
+		
+		for face in self.faces:
+			face_center_x, face_center_y = face['draw']['center']
+			
+			min_x = face_center_x-range_check
+			max_x = face_center_x+range_check
+			
+			min_y = face_center_y-range_check
+			max_y = face_center_y+range_check
+			
+			in_horizontal_range = min_x < center_x < max_x
+			in_vertical_range = min_y < center_y < max_y
+			
+			if in_horizontal_range and in_vertical_range:
+				return True
+		
+		return False
 	
 	
 	def facesDetect(self):
+		"""Create a face dictionary."""
+		
 		self.faces = []
 		classifier_face = self.classifiers['face']
 		
 		for rotation in [0, 30, -30]:
 			classifier_settings = classifier_face['settings'].copy()
-			rot_image = self.image.rotate(rotation, resample=PIL.Image.BILINEAR)
+			rot_image = self.image.rotate(rotation, resample=self.resample)
 			
 			if self.image.width > self.image.height:
 				classifier_settings['minSize'] = (
@@ -226,8 +370,14 @@ class CVFace:
 				face_polygon = Object2D.boxPolygon(face_box)
 				face_center = Object2D.boxCenter(face_box)
 				
-				face_polygon = Object2D.rotate(face_polygon, rotation, self.center)
-				face_center = Object2D.rotate(face_center, rotation, self.center)
+				# Rotate these points for drawing on the original image.
+				face_polygon = Object2D.rotate(
+					face_polygon, rotation, self.center
+				)
+				
+				face_center = Object2D.rotate(
+					face_center, rotation, self.center
+				)
 				
 				
 				if  not self.hasNearbyFaceCenters(face_center):
@@ -248,24 +398,108 @@ class CVFace:
 		return self.faces
 	
 	
-	def hasNearbyFaceCenters(self, center):
-		if self.image.width > self.image.height:
-			range_check = int(self.image.width*.015)
-		else:
-			range_check = int(self.image.height*.015)
+	def facesCrop(self, path, faces = None, image = None, normalize = True):
+		"""Draw all faces and centers from a face dictionary."""
 		
-		return False
-	
-	
-	def faceRegions(self):
-		return 
-	
-	
-	def eyesDetect(self):
-		return
-	
+		is_path = isinstance(path, str) and os.path.isfile(path)
+		is_img_path = isinstance(self.path, str) and os.path.isfile(self.path)
+		
+		if not is_path:
+			path = False
+		else:
+			if is_img_path:
+				fname = 'unknown'
+			else:
+				fname = 'unknown'
+		
+		if not image:
+			image = self.image
+		
+		if not faces:
+			faces = self.faces
+		
+		classifier_left = self.classifiers['eyes_left']
+		classifier_right = self.classifiers['eyes_right']
+		
+		for face in faces:
+			rot_image = image.copy()
+			
+			if face['rotation'] != 0:
+				rot_image = rot_image.rotate(
+					face['rotation'], resample=self.resample)
+			
+			if normalize:
+# 				crop = list(face['crop'])
+# 				
+# 				print(crop)
+# 				
+# 				crop[0] = crop[0]-50
+# 				if crop[0] < 0:
+# 					crop[0] = 0
+# 				
+# 				crop[1] = crop[1]-50
+# 				if crop[1] < 0:
+# 					crop[1] = 0
+# 					
+# 				crop[2] = crop[2]+50
+# 				if crop[2] > rot_image.width:
+# 					crop[2] = rot_image.width
+# 					
+# 				crop[3] = crop[3]+50
+# 				if crop[3] > rot_image.height:
+# 					crop[3] = rot_image.height
+# 				
+# 				rot_image = rot_image.crop(crop)
+				
+				rot_image = rot_image.crop(face['crop'])
+				
+				dimensions = self.normalized_size
+				rot_image = rot_image.resize(dimensions, resample=self.resample)
+				
+				classifier_settings = classifier_left['settings'].copy()
+				found_left = classifier_left['classifier'].detectMultiScale(
+					self.imageToCV(rot_image),
+					**classifier_settings
+				);
+				
+				classifier_settings = classifier_right['settings'].copy()
+				found_right = classifier_left['classifier'].detectMultiScale(
+					self.imageToCV(rot_image),
+					**classifier_settings
+				);
+				
+				if found_left.any() and found_right.any():
+					rot_image = self.imageDrawPolygon(
+						Object2D.boxPolygon(found_left),
+						rot_image
+					)
+					
+					rot_image = self.imageDrawPolygon(
+						Object2D.boxPolygon(found_right),
+						rot_image
+					)
+				
+				rot_image.show()
+				
+			else:
+				rot_image = rot_image.crop(face['crop'])
+			
+			if is_path:
+				fname = 'unknown'
+			
+			
+		# Loop
+			# Crop Square w Margin
+			# Normalize?
+				# Detect Eyes
+				# Detect Angle
+				# Rotate
+				# Detect Face
+				# Crop
+			# Save
 	
 	def show(self, image = None):
+		"""Show an image."""
 		if not image:
 			self.image.show()
 		else:
@@ -274,15 +508,26 @@ class CVFace:
 	
 		
 if __name__ == "__main__":
-	Object2D.rotate((200, 200), 90, (500,500))
-	# Mia and Erin at Disnet
+	# Mia and Erin at Disney
 	# img = CVFace('samples/IMG_2492.jpg')
 	# Mia, Anna, and Joost
-	img = CVFace('samples/IMG_5493.jpg')
-	draw = ImageDraw.Draw(img.image)
-	for face in img.faces:
-		draw.polygon(face['draw']['polygon'], outline='blue')
-	img.show()
-	pp = pprint.PrettyPrinter(indent=4)
-	pp.pprint(img.faces)
-	print(len(img.faces))
+	# img = CVFace('samples/IMG_5493.jpg')
+	
+	import glob
+	
+	files = glob.glob('samples/*.jpg')
+	
+	for file in files:
+		img = CVFace(file)
+		img.facesCrop('output')
+		exit()
+		#img.imageDrawFaces()
+		#img.show()
+		
+		pp = pprint.PrettyPrinter(indent=4)
+		pp.pprint(file)
+		pp.pprint(len(img.faces))
+		for face in img.faces:
+			if face['box'][2] != face['box'][3]:
+				print(face['box'])
+		# pp.pprint(img.faces)
